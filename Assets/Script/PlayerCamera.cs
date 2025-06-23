@@ -1,3 +1,4 @@
+using System;
 using DG.Tweening;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -13,6 +14,8 @@ public class PlayerCamera : MonoBehaviour
     [SerializeField] private float frontOffset;
     [SerializeField] private float rightOffset;
     
+    [SerializeField] private float collisionThreshold;
+    
     [SerializeField] private Vector2 cameraSpeed;
     
     //Min and Max angle are for the pitch. Avoiding putting the camera upside down.
@@ -23,6 +26,7 @@ public class PlayerCamera : MonoBehaviour
     //contain yaw and pitch, roll is ignored
     private Vector2 _currentAngle;
     private Tween _currentTween;
+    private float _currentFrontOffset;
     
     //private Vector3 AimPoint => playerTransform.position + aimOffset;
 
@@ -37,8 +41,12 @@ public class PlayerCamera : MonoBehaviour
     {
         CatchInputs();
     }
-    
-    
+
+    private void FixedUpdate()
+    {
+        CatchCollision();
+    }
+
 
     private void CatchInputs()
     {
@@ -64,6 +72,25 @@ public class PlayerCamera : MonoBehaviour
         _currentAngle = newAngle;
     }
 
+    private void CatchCollision()
+    {
+        Vector3 origin = playerTransform.position;
+        Vector3 direction = (transform.position - origin).normalized;
+        float maxDistance = -frontOffset;
+
+        RaycastHit hit;
+        LayerMask layerMask = LayerMask.GetMask("Default");
+
+        if (Physics.Raycast(origin, direction, out hit, maxDistance, layerMask))
+        {
+            _currentFrontOffset = (-hit.distance + collisionThreshold);
+        }
+        else
+        {
+            _currentFrontOffset = frontOffset;
+        }
+    }
+
     
     private Vector3 GetGoalPosition(Vector2 goalCameraAngles)
     {
@@ -76,7 +103,7 @@ public class PlayerCamera : MonoBehaviour
         
         forward = Quaternion.AngleAxis(goalCameraAngles.y, right) * forward;
 
-        Vector3 goalPos = forward.normalized * frontOffset + right.normalized * rightOffset;
+        Vector3 goalPos = forward.normalized * _currentFrontOffset + right.normalized * rightOffset;
         
         goalPos += playerPos;
         
