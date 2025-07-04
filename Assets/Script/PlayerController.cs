@@ -20,8 +20,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float movementSpeed;
     [SerializeField] private float runningSpeed;
     [SerializeField] private float jumpStrength;
-
-    public EPlayerMovementState PlayerMovementState { get; private set; }
+    
+    public bool IsGrounded { get; private set; }
     private Vector3 _velocity;
     
     void Start()
@@ -32,7 +32,6 @@ public class PlayerController : MonoBehaviour
     
     void Update()
     {
-        
         CatchInputs();
     }
 
@@ -44,11 +43,11 @@ public class PlayerController : MonoBehaviour
         LayerMask layerMask = LayerMask.GetMask("Default");
         if (Physics.Raycast(groundCheckStartPoint.position, -transform.up, out hit, maxDistance, layerMask))
         {
-            PlayerMovementState = EPlayerMovementState.OnGround;
+            IsGrounded = true;
         }
         else
         {
-            PlayerMovementState = EPlayerMovementState.InAir;
+            IsGrounded = false;
         }
     }
 
@@ -56,7 +55,10 @@ public class PlayerController : MonoBehaviour
 
     private void CatchInputs()
     {
+        _velocity = rigidbody.linearVelocity;
+        
         ApplyMovement(movement.action.ReadValue<Vector2>());
+        if (jump.action.IsPressed()) ApplySpaceBar();
         if (jump.action.IsPressed()) ApplySpaceBar();
     }
     
@@ -69,24 +71,24 @@ public class PlayerController : MonoBehaviour
         float angle = Vector3.Angle(Vector3.forward, cameraForward);
         bool isRight = Vector3.Dot(cameraForward, Vector3.right) > 0;
 
-        switch (PlayerMovementState)
-        {
-            case EPlayerMovementState.OnGround:
-                _velocity = (Quaternion.AngleAxis(isRight ? angle : -angle, Vector3.up) * new Vector3(input.x, 0, input.y)).normalized * movementSpeed;
-                break;
-            
-            case EPlayerMovementState.InAir:
-                _velocity = (Quaternion.AngleAxis(isRight ? angle : -angle, Vector3.up) * new Vector3(input.x, 0, input.y)).normalized * movementSpeed;
-                break;
-        }
+        if(IsGrounded)
+            _velocity = (Quaternion.AngleAxis(isRight ? angle : -angle, Vector3.up) * new Vector3(input.x, 0, input.y)).normalized * movementSpeed;
+        else
+            _velocity += (Quaternion.AngleAxis(isRight ? angle : -angle, Vector3.up) * new Vector3(input.x, 0, input.y)).normalized * (movementSpeed * 3f * Time.deltaTime);
+        
     }
 
     private void ApplySpaceBar()
     {
-        if (PlayerMovementState == EPlayerMovementState.OnGround)
+        if (IsGrounded)
         {
             _velocity.y = jumpStrength;
         }
+    }
+
+    private void ApplySprint()
+    {
+        
     }
 
     #endregion
@@ -97,34 +99,21 @@ public class PlayerController : MonoBehaviour
         Vector3 rbVelocity = rigidbody.linearVelocity;
         GroundCheck();
 
-        switch (PlayerMovementState)
+
+        if (IsGrounded)
         {
-            case EPlayerMovementState.OnGround:
-                rbVelocity.x = _velocity.x;
-                rbVelocity.z = _velocity.z;
-                if(_velocity.y != 0) rbVelocity.y = _velocity.y;
-                break;
-            
-            case EPlayerMovementState.InAir:
-                if(_velocity.x != 0) rbVelocity.x = _velocity.x;
-                if(_velocity.z != 0) rbVelocity.z = _velocity.z;
-                if(_velocity.y != 0) rbVelocity.y = _velocity.y;
-                break;
-            
+            rbVelocity.x = _velocity.x;
+            rbVelocity.z = _velocity.z;
+            if(_velocity.y != 0) rbVelocity.y = _velocity.y;
         }
-        
-        
+        else
+        {
+            if(_velocity.x != 0) rbVelocity.x = _velocity.x;
+            if(_velocity.z != 0) rbVelocity.z = _velocity.z;
+            if(_velocity.y != 0) rbVelocity.y = _velocity.y;
+        }
         
         rigidbody.linearVelocity = rbVelocity;
 
-    }
-    
-    public enum EPlayerMovementState
-    {
-        OnGround,
-        InAir,
-        InWater,
-        UnderWater,
-        OnWall
     }
 }
