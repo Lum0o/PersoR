@@ -20,13 +20,17 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float movementSpeed;
     [SerializeField] private float runningSpeed;
     [SerializeField] private float jumpStrength;
+    [SerializeField] private float fovScaling = 2.0f;
+    [SerializeField] private float minFov = 80.0f;
+    
     
     public bool IsGrounded { get; private set; }
+    public bool IsRunning { get; private set; }
     private Vector3 _velocity;
     
     void Start()
     {
-        
+        camera.fieldOfView = minFov;
     }
 
     
@@ -57,8 +61,8 @@ public class PlayerController : MonoBehaviour
     {
         _velocity = rigidbody.linearVelocity;
         
+        ApplySprint();
         ApplyMovement(movement.action.ReadValue<Vector2>());
-        if (jump.action.IsPressed()) ApplySpaceBar();
         if (jump.action.IsPressed()) ApplySpaceBar();
     }
     
@@ -71,11 +75,20 @@ public class PlayerController : MonoBehaviour
         float angle = Vector3.Angle(Vector3.forward, cameraForward);
         bool isRight = Vector3.Dot(cameraForward, Vector3.right) > 0;
 
-        if(IsGrounded)
-            _velocity = (Quaternion.AngleAxis(isRight ? angle : -angle, Vector3.up) * new Vector3(input.x, 0, input.y)).normalized * movementSpeed;
+        if (IsGrounded)
+        {
+            if(IsRunning)
+                _velocity = (Quaternion.AngleAxis(isRight ? angle : -angle, Vector3.up) * new Vector3(input.x, 0, input.y)).normalized * runningSpeed;
+            else
+                _velocity = (Quaternion.AngleAxis(isRight ? angle : -angle, Vector3.up) * new Vector3(input.x, 0, input.y)).normalized * movementSpeed;
+        }
         else
-            _velocity += (Quaternion.AngleAxis(isRight ? angle : -angle, Vector3.up) * new Vector3(input.x, 0, input.y)).normalized * (movementSpeed * 3f * Time.deltaTime);
-        
+        {
+            if(IsRunning)
+                _velocity += (Quaternion.AngleAxis(isRight ? angle : -angle, Vector3.up) * new Vector3(input.x, 0, input.y)).normalized * (runningSpeed * 3f * Time.deltaTime);
+            else
+                _velocity += (Quaternion.AngleAxis(isRight ? angle : -angle, Vector3.up) * new Vector3(input.x, 0, input.y)).normalized * (movementSpeed * 3f * Time.deltaTime);
+        }
     }
 
     private void ApplySpaceBar()
@@ -88,17 +101,16 @@ public class PlayerController : MonoBehaviour
 
     private void ApplySprint()
     {
-        
+        IsRunning = run.action.IsPressed();;
     }
 
     #endregion
-    
+   
 
     private void FixedUpdate()
     {
         Vector3 rbVelocity = rigidbody.linearVelocity;
         GroundCheck();
-
 
         if (IsGrounded)
         {
