@@ -9,20 +9,25 @@ public class GravityBody : MonoBehaviour
     [SerializeField] private bool customMass;
     [SerializeField, EnableIf("customMass")] private float mass;
     [SerializeField] private float density = 2000;
-
-    public float Mass => mass;
-    private Collider _collider;
-    private Rigidbody _rigidbody;
-    private List<GravityEmitter> _gravityEmitters = new();
+    [SerializeField] private Vector3 startVelocity;
+    [SerializeField, HideInInspector] private Collider _collider;
+    [SerializeField, HideInInspector] private Rigidbody _rigidbody;
     
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    private List<GravityEmitter> _gravityEmitters = new();
+    public float Mass => mass;
+
+    private void OnValidate()
+    {
+        if (_collider == null)
+            _collider = GetComponent<Collider>();
+
+        if (_rigidbody == null)
+            _rigidbody = GetComponent<Rigidbody>();
+    }
+
     void Start()
     {
-        _collider = GetComponent<Collider>();
         _collider.includeLayers |= LayerMask.GetMask("Gravity");
-        
-        _rigidbody = GetComponent<Rigidbody>();
-        
         Vector3 scale = transform.lossyScale;
         
         //If there is no custom mass, compute one using general formula.
@@ -31,12 +36,16 @@ public class GravityBody : MonoBehaviour
             mass = (4.0f / 3.0f) * Mathf.PI * scale.x * scale.y * scale.z * density;
         }
 
-        var emitters =  Physics.OverlapSphere(transform.position, 1, LayerMask.GetMask("Gravity"));
+        var emitters =  Physics.OverlapSphere(transform.position, 1);
         foreach (var other in emitters)
         {
+            if (!other.gameObject.CompareTag("GravityEmitter")) return;
             var emitter = other.gameObject.GetComponent<GravityEmitter>();
             _gravityEmitters.Add(emitter);
         }
+        
+        _rigidbody.AddForce(startVelocity);
+        print("[GravityBody] : " + _gravityEmitters.Count + " gravity emitters found !");
     }
 
     private void FixedUpdate()
@@ -49,7 +58,7 @@ public class GravityBody : MonoBehaviour
 
     private void OnCollisionEnter(Collision other)
     {
-        if (other.gameObject.tag != "GravityEmitter")
+        if (!other.gameObject.CompareTag("GravityEmitter"))
             return;
 
         var emitter = other.gameObject.GetComponent<GravityEmitter>();
@@ -58,7 +67,7 @@ public class GravityBody : MonoBehaviour
 
     private void OnCollisionExit(Collision other)
     {
-        if (other.gameObject.tag != "GravityEmitter")
+        if (!other.gameObject.CompareTag("GravityEmitter"))
             return;
         
         var emitter = other.gameObject.GetComponent<GravityEmitter>();

@@ -1,3 +1,4 @@
+using System;
 using NaughtyAttributes;
 using UnityEngine;
 
@@ -8,22 +9,25 @@ public class GravityEmitter : MonoBehaviour
     [SerializeField, EnableIf("customMass")] private float mass;
     [SerializeField] private float density = 2000;
     
-    [SerializeField, EnableIf("false")] private double _g;
-    [SerializeField, EnableIf("false")] private float _fmax;
+    [ShowNonSerializedField] private double _g;
+    [ShowNonSerializedField] private float _fmax;
     public double g => _g;
     //public double Fmax => _fmax;
     
     private double _influenceZoneRay;
-    private SphereCollider _influenceZone;
+    [SerializeField, HideInInspector] private SphereCollider _influenceZone;
     private float _ray;
-    
+
+    private void OnValidate()
+    {
+        if (_influenceZone == null)
+            _influenceZone = GetComponent<SphereCollider>();
+    }
+
     void Start()
     {
-        _influenceZone = GetComponent<SphereCollider>();
-        _influenceZone.includeLayers = LayerMask.GetMask("Gravity");
+        _influenceZone.includeLayers |= LayerMask.GetMask("Gravity");
         _influenceZone.tag = "GravityEmitter";
-        _influenceZone.isTrigger = true;
-        
         
         Vector3 scale = transform.lossyScale;
         
@@ -44,7 +48,7 @@ public class GravityEmitter : MonoBehaviour
 
     public Vector3 GetVelocityApplied(GravityBody rigidBody)
     {
-        Vector3 direction = rigidBody.transform.position - transform.position;
+        Vector3 direction = transform.position - rigidBody.transform.position;
         float distance = direction.magnitude;
         double strength = GlobalConstants.G * (mass * rigidBody.Mass) 
             / Mathf.Pow(distance, 2) 
